@@ -10,6 +10,7 @@ import { WebSocketServer } from "ws";
 import axios from "axios";
 import crypto from "crypto";
 import { json } from "stream/consumers";
+import { constrainedMemory } from "process";
 
 const __dirname = url.fileURLToPath(new URL(".", import.meta.url));
 
@@ -51,22 +52,29 @@ function getLatestInstance() {
   return sortedInstances[0];
 }
 
+//if exists, remove empty.txt from instances folder
+if(fs.existsSync(path.join(__dirname, "instances", "empty.txt")))
+{
+  fs.unlinkSync(path.join(__dirname, "instances", "empty.txt"));
+}
+
 instancePath = path.join(__dirname, "instances/" + getLatestInstance() + "/server");
 
 function instanceRoot() {
-  if(path.join(__dirname, "instances/" + instancePath.split("/")[instancePath.split("/").length - 2]) == undefined)
+  const lastFolder = path.basename(instancePath);
+  if(lastFolder === undefined || lastFolder === '')
   {
-    return path.join(__dirname, "instances/" + instancePath.split("\\")[instancePath.split("\\").length - 2]);
+    return path.join(__dirname, "instances");
   }
-  else{
-    return path.join(__dirname, "instances/" + instancePath.split("/")[instancePath.split("/").length - 2]);
+  else
+  {
+    return path.dirname(instancePath);
   }
-  
 }
 
 function getInstanceName()
 {
-  return instancePath.split("/")[instancePath.split("/").length - 2];
+  return path.basename(path.dirname(instancePath));
 }
 
 let currentArgsBuffer = "";
@@ -87,8 +95,19 @@ let status = 0;
 
 // ==================== SERVER CONTROL ====================
 let jarProcess = null;
+let allProcesses = [];
+let instances2 = fs.readdirSync(path.join(__dirname, "instances"));
+for (let i = 0; i < instances2.length; i++) {
+  instances2[i] = path.join(__dirname, "instances", instances2[i], "server");
+  allProcesses.push("null");
+}
 
 // Start the Minecraft server
+
+function curInstId()
+{
+  return instances2.indexOf(instancePath);
+}
 
 
 // ===== TERMINAL ENDPOINT =====
@@ -99,25 +118,25 @@ app.get("/terminal", (req, res) => {
   if (!cmd) return res.status(400).send("Missing ?cmd parameter");
 
   if (cmd === "start") {
-    if (jarProcess) return res.send("Server already running.");
+    if (allProcesses[curInstId()] != "null") return res.send("Server already running.");
 
     const jarPath = path.join(instancePath, "server.jar");
     if (!fs.existsSync(jarPath))
       return res.status(404).send("server.jar not found in /server");
 
-    jarProcess = spawn("java", [currentArgs + " -jar", "server.jar nogui"], {
+    allProcesses[curInstId()] = spawn("java", [currentArgs + " -jar", "server.jar nogui"], {
       cwd: path.join(instancePath),
       shell: true,
     });
 
     status = 1;
 
-    jarProcess.stdout.on("data", (data) => broadcastConsole(data.toString()));
-    jarProcess.stderr.on("data", (data) => broadcastConsole(data.toString()));
+    allProcesses[curInstId()].stdout.on("data", (data) => broadcastConsole(data.toString()));
+    allProcesses[curInstId()].stderr.on("data", (data) => broadcastConsole(data.toString()));
 
-    jarProcess.on("close", (code) => {
+    allProcesses[curInstId()].on("close", (code) => {
       broadcastConsole(`Server stopped (exit code ${code})`);
-      jarProcess = null;
+      allProcesses[curInstId()] = "null";
       status = 0;
     });
 
@@ -125,8 +144,8 @@ app.get("/terminal", (req, res) => {
   }
 
   if (cmd === "stop") {
-    if (!jarProcess) return res.send("Server not running.");
-    jarProcess.stdin.write("stop\n");
+    if (allProcesses[curInstId()] == "null") return res.send("Server not running.");
+    allProcesses[curInstId()].stdin.write("stop\n");
     return res.send("Stopping server...");
   }
 
@@ -176,8 +195,8 @@ wss.on("connection", (ws) => {
     }
 
     // --- Handle commands ---
-    if (data.type === "cmd" && jarProcess && jarProcess.stdin.writable) {
-      jarProcess.stdin.write(data.data + "\n");
+    if (data.type === "cmd" && allProcesses[curInstId()] && allProcesses[curInstId()].stdin.writable) {
+      allProcesses[curInstId()].stdin.write(data.data + "\n");
     }
   });
 
@@ -537,7 +556,11 @@ app.post('/instanceCreate', upload.single('file'), (req, res) => {
     fs.mkdirSync(path.join(baseDir, "server"), { recursive: true });
     fs.mkdirSync(path.join(baseDir, "backups"), { recursive: true });
 
-    const destPath = path.join(baseDir, "server", req.file.originalname);
+    let destPath = path.join(baseDir, "server", req.file.originalname);
+    if(req.file.originalname.endsWith(".jar"))
+    {
+      destPath = path.join(baseDir, "server", "server.jar");
+    }
     fs.renameSync(filePath, destPath);
 
     fs.writeFileSync(path.join(baseDir, "description.txt"), desc);
@@ -549,6 +572,39 @@ app.post('/instanceCreate', upload.single('file'), (req, res) => {
     res.status(500).send("Failed to upload file: " + e.message);
   }
 });
+
+app.post('/mrdl', async (req, res) => {
+  if (!checkPassword(req, res)) return res.status(401).send("Unauthorized: wrong password");
+
+  const link = req.body.link;
+  if (!link)
+    return res.status(400).send("Missing name, description, or link");
+
+  const baseDir = path.join(__dirname, "instances", getInstanceName(), "server");
+  
+
+  try {
+    fs.mkdirSync(path.join(baseDir, "plugins"), { recursive: true });
+
+    const fileName = path.basename(link.split("?")[0]);
+    const destPath = path.join(baseDir, "plugins", fileName);
+
+    console.log(`Downloading file from body link: ${link}`);
+
+    // Download the file
+    const response = await fetch(link);
+    if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    fs.writeFileSync(destPath, buffer);
+
+    res.send("✅ Download and setup successful");
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("Failed to download or save file: " + e.message);
+  }
+});
+
 
 app.post('/instanceEdit', (req, res) => {
   if (!checkPassword(req, res)) return res.status(401).send("Unauthorized: wrong password");
@@ -608,7 +664,7 @@ app.post('/instanceGetArgs', (req, res) => {
   if (!checkPassword(req, res)) return res.status(401).send("Unauthorized: wrong password");
 
   
-  console.log(req.body);
+  //console.log(req.body);
   const name = req.body.name;
 
   if (!name) return res.status(400).send("all fields are required");
@@ -695,7 +751,7 @@ app.post('/instanceDel', (req, res) => {
   if (!name) return res.status(400).send("name is required");
   console.log(name);
   console.log(getInstanceName());
-  if(jarProcess == null || name != getInstanceName())
+  if(allProcesses[curInstId()] == null || name != getInstanceName())
   {
   try {
     const baseDir = path.join(__dirname, "instances", name);
@@ -712,19 +768,63 @@ app.post('/instanceDel', (req, res) => {
 }
 else
   {
-    jarProcess.stdin.write("stop\n");
+    allProcesses[curInstId()].stdin.write("stop\n");
     res.status(500).send("Stopping current server first. Please wait.");
   }
 });
 
 app.get('/instanceList', (req, res) => {
+  //console.log("instanceList: " + instances2);
   const instances = fs.readdirSync(path.join(__dirname, "instances"));
 
   //return each folder name and the description.txt inside each folder
-  const instanceList = instances.map(instance => {
-    const description = fs.readFileSync(path.join(__dirname, "instances", instance, "description.txt"), 'utf-8');
+  let instanceList = instances.map(instance => {
+    const descriptionPath = path.join(__dirname, "instances", instance, "description.txt");
+    let description = "";
+    if (fs.existsSync(descriptionPath)) {
+      description = fs.readFileSync(descriptionPath, 'utf-8');
+    } else {
+      fs.writeFileSync(descriptionPath, "");
+    }
     return { name: instance, description };
   });
+
+  let instison = [];
+  for(var i = 0; i < instanceList.length; i++)
+  {
+    if(allProcesses[i] == "null" || null)
+    {
+      instanceList[i]["online"] = false;
+    }
+    else
+    {
+      instanceList[i]["online"] = true;
+    }
+  }
+
+  //for each instance retrive instances/instancename/server/server.properties
+for (let i = 0; i < instanceList.length; i++) {
+  const serverPropertiesPath = path.join(__dirname, "instances", instanceList[i].name, "server", "server.properties");
+
+  if (fs.existsSync(serverPropertiesPath)) {
+    const serverProperties = fs.readFileSync(serverPropertiesPath, 'utf-8');
+    
+    // Normalize line endings and trim
+    const lines = serverProperties.replace(/\r/g, '').split('\n');
+    
+    // Find the line starting with 'server-port=' (ignoring whitespace)
+    const portLine = lines.find(line => line.trim().startsWith('server-port='));
+    
+    if (portLine) {
+      const port = portLine.split('=')[1].trim();
+      instanceList[i].port = port || null;
+    } else {
+      instanceList[i].port = null;
+    }
+  } else {
+    instanceList[i].port = null;
+  }
+}
 
   res.json({
     instances: instanceList
@@ -732,47 +832,29 @@ app.get('/instanceList', (req, res) => {
 });
 
 app.post('/setInstance', (req, res) => {
-  if(jarProcess == null)
-  {
+
     if (!checkPassword(req, res)) return res.status(401).send("Unauthorized: wrong password");
 
-    const name = req.body.name;
-    
+    const name1 = req.body.name;
+    //console.log(name1);
 
-    if (!name) return res.status(400).send("name is required");
+    if (!name1) return res.status(400).send("name is required");
 
     try {
-      instancePath = path.join(__dirname, "instances", name, "server");
+      instancePath = path.join(__dirname, "instances", name1, "server");
       if(fs.existsSync(path.join(instanceRoot(), "cfg.json")) == false)
       {
         fs.writeFileSync(path.join(instanceRoot(), "cfg.json"), JSON.stringify({args: ""}));
       }
       currentArgsBuffer = fs.readFileSync(path.join(instanceRoot(), "cfg.json"), "utf-8");
       currentArgs = JSON.parse(currentArgsBuffer).args;
+
+      res.header("Content-Type", "application/json");
+      res.send(JSON.stringify({message: "Upload successful"}));
     } catch (e) {
-      res.status(500).send("Error" + e.message);
+      res.header("Content-Type", "application/json");
+      res.status(500).send(JSON.stringify({message: "Error" + e.message}));
     }
-    res.send("Upload successful");
-  }
-  else
-  {
-    jarProcess.stdin.write("stop\n");
-    res.send("stopping current server");
-  }
-});
-
-app.get('/instanceList', (req, res) => {
-  const instances = fs.readdirSync(path.join(__dirname, "instances"));
-
-  //return each folder name and the description.txt inside each folder
-  const instanceList = instances.map(instance => {
-    const description = fs.readFileSync(path.join(__dirname, "instances", instance, "description.txt"), 'utf-8');
-    return { name: instance, description };
-  });
-
-  res.json({
-    instances: instanceList
-  })
 });
 
 

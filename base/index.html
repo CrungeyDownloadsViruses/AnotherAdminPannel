@@ -168,7 +168,7 @@
   .file-controls{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
   input[type="file"]{background:#111;color:#fff;padding:6px;border-radius:6px}
   input[type="text"]{padding:8px;border-radius:6px;border:1px solid #222;background:#0f0f0f;color:#fff}
-  .action-btn{padding:8px 10px;border-radius:6px;border:1px solid #333;background:#1f1f1f;color:#fff;cursor:pointer}
+  .action-btn{padding:8px 10px;border-radius:6px;border:1px solid #333;background:#1f1f1f;color:#fff;cursor:pointer; margin-left:5px;}
   .action-btn:hover{background:#2b2b2b}
 
   /* responsive */
@@ -182,7 +182,10 @@
   <div class="wrap">
         <div class="topbar">
             <div class="status-left">
-                <div class="status-title">Server Status</div>
+                <div class="status-title"><div>Server Status</div><div id="selected-id" style="
+    color: white;
+    font-size: small;
+">selected: null</div></div>
                 <div class="usage-bars">
         
                     <!-- RAM Bar -->
@@ -218,6 +221,7 @@
       <div class="tab" onclick="currentTab = 2; updateTabs();" style="background: #282828; width: 150px; height: 100%; border-radius: 5px 5px 0px 0px; text-align: center; padding-top: 0.03%; display: inline-block; margin-right: 5px;">config</div>
       <div class="tab" onclick="currentTab = 3; updateTabs();" style="background: #282828; width: 150px; height: 100%; border-radius: 5px 5px 0px 0px; text-align: center; padding-top: 0.03%; display: inline-block; margin-right: 5px;">backups</div>
       <div class="tab" onclick="currentTab = 4; updateTabs();" style="background: #282828; width: 150px; height: 100%; border-radius: 5px 5px 0px 0px; text-align: center; padding-top: 0.03%; display: inline-block; margin-right: 5px;">instances</div>
+     <div class="tab" onclick="currentTab = 5; updateTabs();" style="background: #282828; width: 150px; height: 100%; border-radius: 5px 5px 0px 0px; text-align: center; padding-top: 0.03%; display: inline-block; margin-right: 5px;">plugin downloader</div>
      
     </div>
     <div class="main"
@@ -253,7 +257,7 @@
     
         <!-- File actions -->
         <div class="file-controls" style="display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; align-items:center;">
-          <input id="file-upload" type="file" />
+          <input style="width: 220px;" id="file-upload" type="file" />
           <button id="upload-btn" class="action-btn">Upload</button>
     
           <input id="new-file-name" type="text" placeholder="newfile.txt" />
@@ -408,6 +412,81 @@
 "></div>
 </div>
 </div>
+<div class="plugin downloader" style="margin-left: 15px; margin-right: 15px; padding-top: 5px; border-radius: 0px 5px 0px 0px; background: linear-gradient(rgb(59, 69, 72) 0%, rgb(22, 22, 22) 100%); min-height: 60px; display: flex;"><div style="
+    width: 100%;
+    display: block;
+    height: calc(100vh - 150px);
+    /* background: blue; */
+    display: flex;
+"><div id="pfilelist" style="
+    width: 350px;
+    background: #282828;
+    /* margin: 5px; */
+    display: inline-flex;
+    padding: 5px;
+    border-radius: 5px;
+    flex-wrap: wrap;
+    align-content: center;
+    align-items: center;
+    justify-content: flex-start;
+    margin: 5px;
+    flex-direction: column;
+"><div style="
+    width: 100%;
+    height: 40px;
+    text-align: center;
+    vertical-align: middle;
+    padding-bottom: 20px;
+">Installed:</div></div>
+<div style="
+    width: 100%;
+    height: 100%;
+    display: block;
+">
+<div style="
+    background: #282828;
+    /* max-height: calc(100vh - 200px); */
+    display: block;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:10px;
+    display: inline-flex;
+    width: 100%;
+    width: calc(100% - 40px);
+    height: 100px;
+    position: relative;
+    /* top: 13px; */
+    border-radius: 5px 5px 5px 5px;
+    margin: 5px;
+    margin-bottom: 0px;
+"><select name="software" style="width: calc(50% - 10px);" id="mr-software">
+    <option value="paper">paper</option>
+    <option value="spigot">spigot</option>
+    <option value="bukkit">bukkit</option>
+    <option value="folia">folia</option>
+    <option value="purpur">purpur</option>
+    <option value="sponge">sponge</option>
+  </select><input id="mr-version"  placeholder="minecraft version" style="width: calc(50% - 10px);"><input id="mr-search" style="width: calc(100% - 140px);"><button id="mr-search-btn" style="width: 120px;">Search</button></div><div id="plugins-browser" style="
+    background: #282828;
+    height: calc(100vh - 305px);
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:10px;
+    display: inline-flex;
+    width: 100%;
+    width: calc(100% - 40px);
+    position: relative;
+    /* top: 13px; */
+    border-radius: 5px 5px 5px 5px;
+    margin: 5px;
+    overflow-y: scroll;
+    
+"></div>
+</div>
+
+</div>
+
     </div>
 
 
@@ -452,6 +531,8 @@ fetch("/currentInstInfo", {
   });
 });
 
+document.getElementById("selected-id").innerText = "Selected: " + curinstname;
+
 function updateTabs()
 {
   let i = 0
@@ -471,6 +552,11 @@ function updateTabs()
     loadInstances();
   }
 
+  if(currentTab == 5){
+    searchModrinth("");
+    showpluginfolderside();
+  }
+
   if(currentTab == 2){
     setConfInfoInst();
     setLA();
@@ -487,6 +573,304 @@ fetch("/currentInstInfo", {
 }
 
 updateTabs();
+
+async function searchModrinth(query) {
+  let ogf = [
+  ["project_type:plugin"]
+]
+  if(document.getElementById("mr-version").value != ""){
+    ogf.push(["versions:" + document.getElementById("mr-version").value]);
+  }
+  if(document.getElementById("mr-software").value != ""){
+    ogf.push(["categories:" + document.getElementById("mr-software").value]);
+  }
+  let facets = encodeURIComponent(JSON.stringify(ogf));
+
+
+  const url = `https://api.modrinth.com/v2/search?limit=100&query=${encodeURIComponent(query)}&facets=${facets}`;
+
+  const response = await fetch(url, {
+    method: "GET"
+  });
+
+  if (!response.ok) {
+    console.error("Request failed:", response.status);
+    return;
+  }
+
+  const data = await response.json();
+  console.log(data);
+  document.getElementById("plugins-browser").innerHTML = "";
+  for(i = 0; i < data.hits.length; i++){
+    // new div
+    const card = document.createElement('div');
+      
+      card.style.borderRadius = '5px';
+      card.style.margin = '5px';
+      card.style.background = 'url(' + data.hits[i].icon_url + ') no-repeat 0px center / 100px';
+      if(data.hits[i].icon_url == "")
+      {
+        card.style.background = 'url(/mr-noimg.png) no-repeat 0px center / 100px';
+      }
+      
+      card.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+      
+      
+      card.style.width = '100%';
+      card.style.height = '100px';
+      card.style.cursor = 'pointer';
+
+      
+
+      const fade = document.createElement('div');
+      fade.style.width = '100%';
+      fade.style.height = '100%';
+      fade.style.borderRadius = '5px';
+      fade.style.background = 'linear-gradient(rgb(40, 40, 40) 0%, rgb(42 47 48 / 25%) 50%, rgb(40, 40, 40) 100%)';
+
+
+      const title = document.createElement('h3');
+      title.textContent = data.hits[i].title;
+      title.style.margin = '0 0 5px 0';
+      title.style.fontSize = '18px';
+      title.style.textShadow = '0px 2px 0px #000000';
+      title.style.marginLeft = '110px';
+
+      const desc = document.createElement('p');
+      desc.textContent = data.hits[i].description || 'No description available';
+      desc.style.margin = '0';
+      desc.style.fontSize = '10px';
+      desc.style.textShadow = '0px 1px 0px #000000';
+      desc.style.marginLeft = '110px';
+
+      const tcontain = document.createElement('div');
+      tcontain.style.height = 'calc(100% - 50px)';
+      tcontain.style.width = '100%';
+      tcontain.style.borderRadius = '5px 5px 0px 0px';
+
+      const bcontain = document.createElement('div');
+      bcontain.style.height = '40px';
+      bcontain.style.background = '#111111';
+      bcontain.style.borderRadius = '5px';
+      bcontain.style.margin = '5px';
+      bcontain.style.display = 'flex';
+      bcontain.style.justifyContent = 'space-around';
+      bcontain.style.alignItems = 'center';
+      bcontain.style.cursor = 'auto';
+      bcontain.style.marginLeft = '110px';
+      bcontain.style.justifyContent = 'flex-start';
+
+      const dlbtn = document.createElement('div');
+      dlbtn.style.width = '55px';
+      dlbtn.style.height = '25px';
+      dlbtn.style.background = "green";
+      dlbtn.style.fontSize = '15px';
+      dlbtn.style.textAlign = 'center';
+      dlbtn.style.fontWeight = 'bold';
+      dlbtn.style.borderRadius = '5px';
+      dlbtn.style.margin = '5px';
+      dlbtn.style.textAlign = 'center';
+      dlbtn.innerHTML = "install";
+      dlbtn.style.cursor = 'pointer';
+      dlbtn.setAttribute('dlid', data.hits[i].project_id);
+      dlbtn.addEventListener('click', () => {
+        const versionsUrl = `https://api.modrinth.com/v2/project/${dlbtn.getAttribute('dlid')}/version`;
+        mrdlforward(versionsUrl);
+        
+      });
+
+      const ntbtn = document.createElement('div');
+      ntbtn.style.width = '25px';
+      ntbtn.style.height = '25px';
+      ntbtn.style.backgroundColor = "#282828";
+      ntbtn.style.background = "url(/mr.png) no-repeat center center / cover";
+      ntbtn.style.fontSize = '15px';
+      ntbtn.style.textAlign = 'center';
+      ntbtn.style.fontWeight = 'bold';
+      ntbtn.style.borderRadius = '5px';
+      ntbtn.style.margin = '5px';
+      ntbtn.style.textAlign = 'center';
+      ntbtn.innerHTML = "";
+      ntbtn.style.cursor = 'pointer';
+      ntbtn.setAttribute('slug', data.hits[i].slug);
+      ntbtn.addEventListener('click', () => {
+        const openurl = `https://modrinth.com/plugin/${ntbtn.getAttribute('slug')}/`;
+        window.open(openurl, '_blank');
+        
+      });
+
+
+      //card.appendChild(fade);
+      bcontain.appendChild(dlbtn);
+      bcontain.appendChild(ntbtn);
+      tcontain.appendChild(title);
+      tcontain.appendChild(desc);
+      card.appendChild(tcontain);
+      card.appendChild(bcontain);
+      document.getElementById("plugins-browser").appendChild(card);
+
+
+  }
+}
+
+async function mrdlforward(url)
+{
+  const versionsResponse = await fetch(url);
+        if (!versionsResponse.ok) {
+          console.error("Failed to fetch versions:", versionsResponse.status);
+          return;
+        }
+
+        const versions = await versionsResponse.json();
+        const latest = versions.find(v => v.game_versions.includes(document.getElementById("mr-version").value));
+
+        if (!latest) {
+          console.log("No compatible version found for " + document.getElementById("mr-version").value);
+          return;
+        }
+
+        const file = latest.files[0];
+        const downloadUrl = file.url;
+
+        console.log(`Sending download URL to /mrdl: ${downloadUrl}`);
+
+        // Send to your /mrdl endpoint
+        const postResponse = await fetch("/mrdl", {
+          method: "POST",
+          headers: {'X-Password': getPasswordHeader()['X-Password'], 'Content-Type': 'application/json'},
+          body: JSON.stringify({ link: downloadUrl })
+        });
+
+        if (!postResponse.ok) {
+          console.error("Failed to send to /mrdl:", postResponse.status);
+        } else {
+          alert("Download successful");
+        }
+}
+
+async function showpluginfolderside()
+{
+  //get items from plugin folder
+  let path = "plugins";
+
+    //fileListEl.textContent = 'Loading...';
+    const res = await fetch(`/files?path=${encodeURIComponent(path)}`, {
+      headers: getPasswordHeader()
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => res.status));
+
+    const files = await res.json();
+    if (!Array.isArray(files)) throw new Error('Expected an array from server');
+    console.log(files);
+
+
+    document.getElementById('pfilelist').innerHTML = `<div style="
+    width: 100%;
+    height: 40px;
+    text-align: center;
+    vertical-align: middle;
+    padding-bottom: 20px;
+">Installed:</div>`;
+
+    files.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'file-item';
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    //console.log(f);
+
+    // Detect if it's a directory
+    const isDir = f.isDirectory === true;
+
+    meta.textContent = `${f.name} ${isDir ? '[DIR]' : '(' + f.size + ' bytes)'}`;
+
+    const actions = document.createElement('div');
+
+    if (!isDir) {
+      // Edit button for files
+      const editBtn = document.createElement('button');
+      editBtn.className = 'action-btn';
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = () => editFile(f.name);
+      editBtn.style.marginRight = '5px';
+      //actions.appendChild(editBtn);
+
+      // Download button for files
+      const dl = document.createElement('button');
+      dl.className = 'action-btn';
+      dl.textContent = 'Download';
+      dl.onclick = () => downloadFile(f.name);
+      dl.style.marginRight = '5px';
+      //actions.appendChild(dl);
+
+      // Delete button
+
+
+      // Move button
+      const mv = document.createElement('button');
+      mv.className = 'action-btn';
+      mv.textContent = 'Move';
+      mv.onclick = () => moveFile(f.name);
+      mv.style.marginRight = '5px';
+      //actions.appendChild(mv);
+
+    } else {
+      // Open button for directories
+      const openBtn = document.createElement('button');
+      openBtn.className = 'action-btn';
+      openBtn.textContent = 'Open';
+      openBtn.style.marginRight = '5px';
+      openBtn.onclick = () => {
+        currentPath = currentPath ? `${currentPath}/${f.name}` : f.name;
+        loadFiles(currentPath);
+      };
+      //actions.appendChild(openBtn);
+    }
+
+    const del = document.createElement('button');
+del.className = 'action-btn';
+del.textContent = 'Delete';
+del.style.marginRight = '5px';
+del.onclick = async () => {
+  if (!confirm(`Delete ${f.name}?`)) return;
+  const fullPath = "plugins" ? `${"plugins"}/${f.name}` : f.name;
+  try {
+    const res = await fetch(`/files/${encodeURIComponent(fullPath)}`, {
+      method: 'DELETE',
+      headers: { 'X-Password': getPasswordHeader()['X-Password']  || '' }
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => res.status));
+    showpluginfolderside();
+  } catch (err) {
+    alert('Delete failed: ' + err.message);
+  }
+};
+actions.appendChild(del);
+
+
+      // Rename button
+      const ren = document.createElement('button');
+      ren.className = 'action-btn';
+      ren.textContent = 'Rename';
+      ren.onclick = () => renameFile(f.name);
+      //actions.appendChild(ren);
+
+    row.appendChild(meta);
+    row.appendChild(actions);
+    row.style.width = 'calc(100% - 30px)';
+    if(!isDir)
+    {
+        document.getElementById('pfilelist').appendChild(row);
+    }
+    
+  });
+
+}
+
+document.getElementById("mr-search-btn").addEventListener("click", () => {
+  searchModrinth(document.getElementById("mr-search").value);
+})
 
 function generateRandomString() {
 	let randomString = '';
@@ -539,6 +923,19 @@ async function updateUsage(){
 
     setBar(ramFill, usedPercent);
     setBar(cpuFill, cpuPercentVal);
+
+    if(currentTab == 4){
+      loadInstances();
+    }
+
+    if(currentTab == 5){
+      showpluginfolderside();
+    }
+
+    document.getElementById("selected-id").innerText = "Selected: " + curinstname;
+
+    loadFiles(currentPath);
+
   } catch (err){
     console.warn('Usage update failed', err);
   }
@@ -551,7 +948,7 @@ function setBar(el, percent){
   const r = Math.round((percent/100) * 255);
   const g = Math.round((1 - percent/100) * 200) + Math.round((1 - percent/100)*55);
   el.style.background = `rgb(${r},${g},0)`;
-    console.log(el.parentNode.getAttribute("title"));
+    //console.log(el.parentNode.getAttribute("title"));
   if(el.parentNode.getAttribute("title") == "CPU")
   {
     document.getElementById("cpu-percent").textContent = percent.toFixed(1) + "% CPU";
@@ -730,7 +1127,7 @@ async function loadFiles(path = '') {
     // Ensure path is a string
     if (typeof path !== 'string') path = '';
 
-    fileListEl.textContent = 'Loading...';
+    //fileListEl.textContent = 'Loading...';
     const res = await fetch(`/files?path=${encodeURIComponent(path)}`, {
       headers: getPasswordHeader()
     });
@@ -936,7 +1333,11 @@ function cancelEdit() {
   currentEditFile = null;
 }
 
-
+document.getElementById('mr-search').addEventListener('keydown', function(e) {
+  if (e.key) {
+    searchModrinth(document.getElementById('mr-search').value);
+  }
+});
 
 
 // Move a file
@@ -1111,7 +1512,7 @@ function renderFileList(files) {
     backBtn.className = 'action-btn';
     backBtn.textContent = '⬅ Back';
     backBtn.onclick = () => {
-      console.log("back");
+      //console.log("back");
       const parts = currentPath.split('/');
       parts.pop();
       currentPath = parts.join('/');
@@ -1131,7 +1532,7 @@ function renderFileList(files) {
 
     const meta = document.createElement('div');
     meta.className = 'meta';
-    console.log(f);
+    //console.log(f);
 
     // Detect if it's a directory
     const isDir = f.isDirectory === true;
@@ -1146,6 +1547,7 @@ function renderFileList(files) {
       editBtn.className = 'action-btn';
       editBtn.textContent = 'Edit';
       editBtn.onclick = () => editFile(f.name);
+      editBtn.style.marginRight = '5px';
       actions.appendChild(editBtn);
 
       // Download button for files
@@ -1153,6 +1555,7 @@ function renderFileList(files) {
       dl.className = 'action-btn';
       dl.textContent = 'Download';
       dl.onclick = () => downloadFile(f.name);
+      dl.style.marginRight = '5px';
       actions.appendChild(dl);
 
       // Delete button
@@ -1163,6 +1566,7 @@ function renderFileList(files) {
       mv.className = 'action-btn';
       mv.textContent = 'Move';
       mv.onclick = () => moveFile(f.name);
+      mv.style.marginRight = '5px';
       actions.appendChild(mv);
 
     } else {
@@ -1170,6 +1574,7 @@ function renderFileList(files) {
       const openBtn = document.createElement('button');
       openBtn.className = 'action-btn';
       openBtn.textContent = 'Open';
+      openBtn.style.marginRight = '5px';
       openBtn.onclick = () => {
         currentPath = currentPath ? `${currentPath}/${f.name}` : f.name;
         loadFiles(currentPath);
@@ -1180,6 +1585,7 @@ function renderFileList(files) {
     const del = document.createElement('button');
 del.className = 'action-btn';
 del.textContent = 'Delete';
+del.style.marginRight = '5px';
 del.onclick = async () => {
   if (!confirm(`Delete ${f.name}?`)) return;
   const fullPath = currentPath ? `${currentPath}/${f.name}` : f.name;
@@ -1305,6 +1711,26 @@ async function loadInstances() {
       bcontain.style.display = 'flex';
       bcontain.style.justifyContent = 'space-around';
       bcontain.style.alignItems = 'center';
+      bcontain.style.cursor = 'auto';
+
+      const statLight = document.createElement('div');
+      statLight.style.width = '15px';
+      statLight.style.height = '15px';
+      statLight.style.background = "red";
+      if(inst.online == true)
+      {
+        statLight.style.background = "green";
+      }
+      if(inst.port != null)
+      {
+        statLight.style.width = '35px';
+        statLight.innerText = inst.port;
+        //statLight.style.webkitTextStroke = '0.5px black';
+      }
+      statLight.style.fontSize = '10px';
+      statLight.style.textAlign = 'center';
+      statLight.style.fontWeight = 'bold';
+      statLight.style.borderRadius = '15px';
 
       const delbtn = document.createElement('div');
       delbtn.style.width = '35px';
@@ -1315,6 +1741,7 @@ async function loadInstances() {
       delbtn.style.textAlign = 'center';
       delbtn.style.fontWeight = 'bold';
       delbtn.style.borderRadius = '5px';
+      delbtn.style.cursor = 'pointer';
       delbtn.addEventListener('click', () => {
         //post to /setInstance
         
@@ -1330,6 +1757,8 @@ async function loadInstances() {
         })
       });
 
+      
+
       const dupebtn = document.createElement('div');
       dupebtn.style.width = '35px';
       dupebtn.style.height = '15px';
@@ -1339,6 +1768,7 @@ async function loadInstances() {
       dupebtn.style.fontWeight = 'bold';
       dupebtn.style.borderRadius = '5px';
       dupebtn.innerHTML = "COPY";
+      dupebtn.style.cursor = 'pointer';
       dupebtn.addEventListener('click', () => {
         //post to /setInstance
         
@@ -1359,6 +1789,7 @@ async function loadInstances() {
       fade.appendChild(bcontain);
       tcontain.appendChild(title);
       tcontain.appendChild(desc);
+      bcontain.appendChild(statLight);
       bcontain.appendChild(delbtn);
       bcontain.appendChild(dupebtn);
       container.appendChild(card);
