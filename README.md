@@ -72,7 +72,6 @@ navigate to the project's folder in a terminal and run ```npm install```
 
 ### Run the program
 
-if on linux, do ```cd folder_that_pannel_is_in```
-and ```chmod +x run.sh```
+if on linux, do ```chmod +x run.sh``` then ```./run.sh```
 
 if on windows, launch run.bat
