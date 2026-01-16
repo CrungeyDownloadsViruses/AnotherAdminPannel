@@ -98,7 +98,7 @@ if on linux, do ```chmod +x run.sh``` then ```./run.sh```
 
 if on windows, launch run.bat
 
-#server node setup
+# server node setup
 
 ---
 ### Install NodeJS v20.11.1
