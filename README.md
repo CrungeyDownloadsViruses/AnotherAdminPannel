@@ -106,15 +106,15 @@ if on windows, launch run.bat
 
 ---
 ### Download the source code
----
+
 
 ---
 ### Navigate to the base folder and run ```npm install```
----
+
 
 ---
 ### Navigate to the ```server node``` folder
----
+
 
 ### Run the program
 
