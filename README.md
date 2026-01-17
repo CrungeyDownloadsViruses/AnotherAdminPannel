@@ -40,8 +40,7 @@
 
 main features:
 
-<img width="2532" height="1219" alt="image" src="https://github.com/user-attachments/assets/0a96c144-1523-4765-b1ce-971739ff7298" />
-
+<img width="2537" height="1255" alt="image" src="https://github.com/user-attachments/assets/e95af24c-7246-48e7-a84d-75e9da94f24a" />
 
 multi-instance support:
 
