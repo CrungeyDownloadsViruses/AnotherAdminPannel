@@ -26,6 +26,8 @@
 
 # Upcoming:
 
+- propper https and wss encryption (highest priority)
+
 - upnp forwarding support for homelab setups
 
 - mod browser for fabric/forge/neoforge servers
