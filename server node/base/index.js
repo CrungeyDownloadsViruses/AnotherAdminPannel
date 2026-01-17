@@ -70,8 +70,14 @@ let tokens = "";
 let myip = "";
 let instancePath = "";
 let allProcesses = [];
+let instances2 = fs.readdirSync(path.join(__dirname, "instances"));
+for (let i = 0; i < instances2.length; i++) {
+  instances2[i] = path.join(__dirname, "instances", instances2[i], "server");
+  allProcesses.push("null");
+}
 let currentArgs = "";
 let status = 0;
+
 
 // ------------------------ Utility ------------------------
 async function getPublicIP() {
@@ -625,6 +631,14 @@ app.post("/instanceDel", (req, res) => {
   }
 });
 
+function getInstNameFromPath(pth)
+{
+  //path is like E:\downloads\AnotherAdminPannel-main\AnotherAdminPannel-main\instances\test\server
+  //return test
+
+  return path.basename(path.dirname(pth));
+}
+
 app.post("/setInstance", (req, res) => {
   if (!checkPassword(req, res))
     return res.status(401).send("Unauthorized: wrong password");
@@ -651,6 +665,16 @@ app.get("/currentInstInfo", (req, res) => {
     "description.txt"
   );
 
+  let isOnline = false;
+    //look through all processes and match to instance names
+    for (let i = 0; i < allProcesses.length; i++) {
+      if(getInstNameFromPath(instances2[i]) == instanceDir && allProcesses[i] != "null") {
+        isOnline = true;
+        break;
+      }
+      //console.log(instances2[i] + " " + instanceDir);
+    }
+
   res.send(
     JSON.stringify({
       name: instanceDir,
@@ -658,6 +682,7 @@ app.get("/currentInstInfo", (req, res) => {
       node: nodename,
       ip: myip + ":" + PORT,
       wsip: myip + ":" + PORT2,
+      isOnline: isOnline
     })
   );
 });
