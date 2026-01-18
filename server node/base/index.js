@@ -5,7 +5,7 @@ import path from "path";
 import multer from "multer";
 import { spawn } from "child_process";
 import * as url from "url";
-import http from "http";
+import http, { get } from "http";
 import { WebSocketServer } from "ws";
 import axios from "axios";
 import crypto from "crypto";
@@ -571,25 +571,143 @@ app.get("/instanceList", (req, res) => {
   });
 });
 
+
 app.post("/instanceCreate", upload.single("file"), (req, res) => {
-  console.log("create");
   if (!checkPassword(req, res))
     return res.status(401).send("Unauthorized: wrong password");
+
   const name = req.body.name;
   const desc = req.body.description;
-  if (!req.file || !name) return res.status(400).send("Missing fields");
+  const filePath = req.file?.path;
+
+  if (!filePath || !name || !desc)
+    return res
+      .status(400)
+      .send("Both file and name and description are required");
+
   const baseDir = path.join(__dirname, "instances", name);
-  fs.mkdirSync(path.join(baseDir, "server"), { recursive: true });
-  fs.mkdirSync(path.join(baseDir, "backups"), { recursive: true });
-  fs.renameSync(req.file.path, path.join(baseDir, "server", "server.jar"));
-  fs.writeFileSync(path.join(baseDir, "description.txt"), desc);
-  res.send("Instance created");
+  if (fs.existsSync(baseDir))
+    return res.status(400).send(`Instance with name "${name}" already exists`);
+
+  try {
+    fs.mkdirSync(path.join(baseDir, "server"), { recursive: true });
+    fs.mkdirSync(path.join(baseDir, "backups"), { recursive: true });
+
+    let destPath = path.join(baseDir, "server", req.file.originalname);
+    if (req.file.originalname.endsWith(".jar")) {
+      destPath = path.join(baseDir, "server", "server.jar");
+    }
+    fs.renameSync(filePath, destPath);
+
+    fs.writeFileSync(path.join(baseDir, "description.txt"), desc);
+
+    fs.writeFileSync(
+      path.join(baseDir, "cfg.json"),
+      JSON.stringify({ args: "" })
+    );
+    instances2 = fs.readdirSync(path.join(__dirname, "instances"));
+    for (let i = 0; i < instances2.length; i++) {
+      instances2[i] = path.join(__dirname, "instances", instances2[i], "server");
+    }
+    allProcesses.push("null");
+    res.send("Upload successful");
+  } catch (e) {
+    res.status(500).send("Failed to upload file: " + e.message);
+  }
+});
+
+app.post("/instanceEdit", (req, res) => {
+  if (!checkPassword(req, res))
+    return res.status(401).send("Unauthorized: wrong password");
+
+  console.log(req.body);
+  const name = req.body.name;
+  const newdesc = req.body.newdesc;
+  const newname = req.body.newname;
+
+  if (!newname || !name || !newdesc)
+    return res.status(400).send("all fields are required");
+
+  try {
+    const baseDir = path.join(__dirname, "instances", name);
+    fs.writeFileSync(path.join(baseDir, "description.txt"), newdesc);
+
+    fs.renameSync(baseDir, path.join(__dirname, "instances", newname));
+
+    instancePath = path.join(__dirname, "instances", newname, "server");
+    currentArgsBuffer = fs.readFileSync(
+      path.join(instanceRoot(), "cfg.json"),
+      "utf-8"
+    );
+    currentArgs = JSON.parse(currentArgsBuffer).args;
+    instances2 = fs.readdirSync(path.join(__dirname, "instances"));
+    for (let i = 0; i < instances2.length; i++) {
+      instances2[i] = path.join(__dirname, "instances", instances2[i], "server");
+    }
+    res.send("Edit successful");
+  } catch (e) {
+    res.status(500).send("Failed to edit: " + e.message);
+  }
+});
+
+app.post("/instanceEditArgs", (req, res) => {
+  if (!checkPassword(req, res))
+    return res.status(401).send("Unauthorized: wrong password");
+
+  console.log(req.body);
+  const name = req.body.name;
+  let args = req.body.args;
+
+  if (!name) return res.status(400).send("all fields are required");
+  if (!args) args = "";
+
+  try {
+    const baseDir = path.join(__dirname, "instances", name);
+
+    currentArgsBuffer = fs.readFileSync(
+      path.join(instanceRoot(), "cfg.json"),
+      "utf-8"
+    );
+    currentArgsBuffer = JSON.parse(currentArgsBuffer);
+    currentArgsBuffer.args = args;
+    fs.writeFileSync(
+      path.join(instanceRoot(), "cfg.json"),
+      JSON.stringify(currentArgsBuffer)
+    );
+
+    res.send("Edit successful");
+  } catch (e) {
+    res.status(500).send("Failed to edit: " + e.message);
+  }
+});
+
+app.post("/instanceGetArgs", (req, res) => {
+  if (!checkPassword(req, res))
+    return res.status(401).send("Unauthorized: wrong password");
+
+  //console.log(req.body);
+  const name = req.body.name;
+
+  if (!name) return res.status(400).send("all fields are required");
+
+  try {
+    const baseDir = path.join(__dirname, "instances", name);
+
+    currentArgsBuffer = fs.readFileSync(
+      path.join(instanceRoot(), "cfg.json"),
+      "utf-8"
+    );
+    currentArgsBuffer = JSON.parse(currentArgsBuffer);
+    res.send(JSON.stringify({ args: currentArgsBuffer.args }));
+  } catch (e) {
+    res.status(500).send("Failed to send: " + e.message);
+  }
 });
 
 app.post("/instanceCopy", upload.single("file"), (req, res) => {
   if (!checkPassword(req, res))
     return res.status(401).send("Unauthorized: wrong password");
-
+  console.log("LENGTHS:    " + instances2.length + " " + allProcesses.length);
   const name = req.body.name;
 
   if (!name) return res.status(400).send("name is required");
@@ -612,7 +730,12 @@ app.post("/instanceCopy", upload.single("file"), (req, res) => {
     fs.cpSync(path.join(baseDir, "cfg.json"), path.join(copyDir, "cfg.json"), {
       recursive: true,
     });
-
+    instances2 = fs.readdirSync(path.join(__dirname, "instances"));
+    for (let i = 0; i < instances2.length; i++) {
+      instances2[i] = path.join(__dirname, "instances", instances2[i], "server");
+    }
+    allProcesses.push("null");
+    console.log("LENGTHS:    " + instances2.length + " " + allProcesses.length);
     res.send("Copy successful");
   } catch (e) {
     res.status(500).send("Failed to upload file: " + e.message);
@@ -622,12 +745,49 @@ app.post("/instanceCopy", upload.single("file"), (req, res) => {
 app.post("/instanceDel", (req, res) => {
   if (!checkPassword(req, res))
     return res.status(401).send("Unauthorized: wrong password");
+
   const name = req.body.name;
-  try {
-    fs.rmSync(path.join(__dirname, "instances", name), { recursive: true, force: true });
-    res.send("Instance deleted");
-  } catch (e) {
-    res.status(500).send(e.message);
+
+  if (!name) return res.status(400).send("name is required");
+  console.log(name);
+  console.log(getInstanceName());
+  if (allProcesses[curInstId()] == null || allProcesses[curInstId()] == "null" || name != getInstanceName()) {
+    try {
+      const baseDir = path.join(__dirname, "instances", name);
+      fs.mkdirSync(path.join(baseDir, "backups", name), { recursive: true });
+      fs.cpSync(
+        path.join(baseDir, "server"),
+        path.join(__dirname, "backups", name),
+        { recursive: true }
+      );
+      //const copyDir = path.join(__dirname, "instances", name + "-copy");
+      fs.rmSync(baseDir, { recursive: true, force: true });
+
+      instancePath = path.join(
+        __dirname,
+        "instances/" + getLatestInstance() + "/server"
+      );
+      for(let i = 0; i < instances2.length; i++) {
+        console.log("instances2[i]: " + instances2[i] + " " + name);
+        if(getInstNameFromPath(instances2[i]) == name) {
+          instances2.splice(i, 1);
+          allProcesses.splice(i, 1);
+          break;
+        }
+      }
+      console.log("LENGTHS:    " + instances2.length + " " + allProcesses.length);
+      instances2 = fs.readdirSync(path.join(__dirname, "instances"));
+      for (let i = 0; i < instances2.length; i++) {
+        instances2[i] = path.join(__dirname, "instances", instances2[i], "server");
+      }
+      console.log("LENGTHS:    " + instances2.length + " " + allProcesses.length);
+      res.send("Delete successful");
+    } catch (e) {
+      res.status(500).send("Failed to upload file: " + e.message);
+    }
+  } else {
+    allProcesses[curInstId()].stdin.write("stop\n");
+    res.status(500).send("Stopping current server first. Please wait.");
   }
 });
 
@@ -773,8 +933,11 @@ app.get("/terminal", (req, res) => {
   if (!cmd) return res.status(400).send("Missing ?cmd parameter");
 
   if (cmd === "start") {
-    if (allProcesses[curInstId()] != "null")
+    if (allProcesses[curInstId()] != "null" && allProcesses[curInstId()] != null)
+    {
+      console.log("status: " + allProcesses[curInstId()] + " " + allProcesses.length + " " + instances2.length);
       return res.send("Server already running.");
+    }
 
     const jarPath = path.join(instancePath, "server.jar");
     if (!fs.existsSync(jarPath))
