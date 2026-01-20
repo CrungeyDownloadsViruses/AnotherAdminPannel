@@ -14,7 +14,6 @@
     "node": ">=20.11.1"
   },
   "dependencies": {
-    "@flmngr/flmngr-server-node-express": "^1.5.3",
     "archiver": "^7.0.1",
     "axios": "^1.13.2",
     "crypto": "^1.0.1",
